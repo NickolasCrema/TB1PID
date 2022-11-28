@@ -13,12 +13,14 @@ from scipy import ndimage
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import figure
 import matplotlib as cm
+# from tkinter import tk    
+from tkinter.filedialog import askopenfilename
 
 
 class Window(QWidget):
     def __init__(self):
         super().__init__()
-        self.imgPath = r"D:\PID\TB1PID\TB1PID\peppers.png"
+        self.imgPath = ''
         layout = QGridLayout()
         self.setWindowTitle("QGridLayout")
 
@@ -29,7 +31,7 @@ class Window(QWidget):
         formLayout.addRow("2nd Parameter", self.secondParameter)
         layout.addLayout(formLayout, 0, 0, 1, 3)
         
-        originalImageButton = QPushButton("Original Image")
+        originalImageButton = QPushButton("Select Image")
         originalImageButton.clicked.connect(self.originalImage)
         layout.addWidget(originalImageButton, 0, 4)
         
@@ -41,6 +43,10 @@ class Window(QWidget):
         robertsButton.clicked.connect(self.roberts)
         layout.addWidget(robertsButton, 1, 1)
 
+        sobelButton = QPushButton("Sobel")
+        sobelButton.clicked.connect(self.sobel)
+        layout.addWidget(sobelButton, 1, 2)
+
         thresholdButton = QPushButton("Threshold")
         thresholdButton.clicked.connect(self.threshold)
         layout.addWidget(thresholdButton, 1, 3)
@@ -49,13 +55,23 @@ class Window(QWidget):
         basicLowPassButton.clicked.connect(self.basicLowPass)
         layout.addWidget(basicLowPassButton, 1, 4)
 
-        layout.addWidget(QPushButton("Sobel"), 1, 2)
-        layout.addWidget(QPushButton("Prewitt"), 2, 0)
+        cannyButton = QPushButton("Canny")
+        cannyButton.clicked.connect(self.canny)
+        layout.addWidget(cannyButton, 2, 3)
+
+        prewittButton = QPushButton("Prewitt")
+        prewittButton.clicked.connect(self.prewitt)
+        layout.addWidget(prewittButton, 2, 0)
+
         layout.addWidget(QPushButton("Log"), 2, 1)
-        layout.addWidget(QPushButton("Poisson"), 2, 2)
+
+        poissonButton = QPushButton("Poisson")
+        poissonButton.clicked.connect(self.poisson)
+        layout.addWidget(poissonButton, 2, 2)
+
         layout.addWidget(QPushButton("Speckle"), 3, 0)
         layout.addWidget(QPushButton("Watershed"), 3, 1)
-        layout.addWidget(QPushButton("Canny"), 3, 2)
+        # layout.addWidget(QPushButton("Canny"), 3, 2)
         self.image = QLabel()
         self.image.height = 640
         self.image.width = 480
@@ -90,6 +106,9 @@ class Window(QWidget):
         return pm
 
     def originalImage(self):
+        currImage = self.imgPath
+        while currImage == self.imgPath:
+            self.imgPath = askopenfilename()
         img = cv.imread(self.imgPath)
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         h, w, _ = img.shape        
@@ -98,6 +117,8 @@ class Window(QWidget):
         self.image.setPixmap(QPixmap.fromImage(p))
 
     def grayscale(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
         img = cv.imread(self.imgPath)
         img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
         gray_image = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
@@ -109,6 +130,8 @@ class Window(QWidget):
         self.image.setPixmap(QPixmap.fromImage(p))
 
     def roberts(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
         #TODO
         roberts_cross_v = np.array( [[1, 0 ],
                                     [0,-1 ]] )
@@ -119,23 +142,79 @@ class Window(QWidget):
         img = cv.imread(self.imgPath, 0).astype('float64')
         # gray_image = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
         # gray_image = gray_image.astype('float64')
-        img/=255.0
-        vertical = ndimage.convolve(img, roberts_cross_v)
-        horizontal = ndimage.convolve(img, roberts_cross_h)
+        
+        vertical = cv.filter2D(img, -1,roberts_cross_v)
+        horizontal = cv.filter2D(img, -1, roberts_cross_h)
         edged_img = np.sqrt(np.square(horizontal) + np.square(vertical))
-        edged_img*=255
         h, w = edged_img.shape        
-        for i, x in enumerate(edged_img):
-            for j, y in enumerate(x):
-                edged_img[i][j] = int(edged_img[i][j])
-        print(edged_img)
+        # for i, x in enumerate(edged_img):
+        #     for j, y in enumerate(x):
+        #         edged_img[i][j] = int(edged_img[i][j])
+        # print(edged_img)
         
         convert_to_Qt_format = QtGui.QImage(edged_img.data, w, h, QtGui.QImage.Format.Format_BGR888)
         p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
         self.image.setPixmap(QPixmap.fromImage(p))
         # cv.imshow(edged_img)
     
+    def canny(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
+        img = cv.imread(self.imgPath)
+        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img_canny = cv.Canny(gray, 100, 200)
+        h, w = img_canny.shape
+        convert_to_Qt_format = QtGui.QImage(img_canny, w, h, QtGui.QImage.Format.Format_Grayscale8)
+        p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+        self.image.setPixmap(QPixmap.fromImage(p))
+
+    def prewitt(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
+
+        img = cv.imread(self.imgPath)
+        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img_gaussian = cv.GaussianBlur(gray,(3,3),0)
+        kernelx = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
+        kernely = np.array([[-1,0,1],[-1,0,1],[-1,0,1]])
+
+        img_prewittx = cv.filter2D(img_gaussian, -1, kernelx)
+        img_prewitty = cv.filter2D(img_gaussian, -1, kernely)
+        img_prewitt = img_prewittx + img_prewitty
+        h, w = img_prewitt.shape
+        convert_to_Qt_format = QtGui.QImage(img_prewitt, w, h, QtGui.QImage.Format.Format_Grayscale8)
+        p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+        self.image.setPixmap(QPixmap.fromImage(p))
+
+    def sobel(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
+        img = cv.imread(self.imgPath)
+        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        img_gaussian = cv.GaussianBlur(gray,(3,3),0)
+        img_sobelx = cv.Sobel(img_gaussian,cv.CV_8U,1,0,ksize=3)
+        img_sobely = cv.Sobel(img_gaussian,cv.CV_8U,0,1,ksize=3)
+        img_sobel = img_sobelx + img_sobely
+        h, w = img_sobel.shape
+        convert_to_Qt_format = QtGui.QImage(img_sobel, w, h, QtGui.QImage.Format.Format_Grayscale8)
+        p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+        self.image.setPixmap(QPixmap.fromImage(p))
+
+    def poisson(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
+        img = cv.imread(self.imgPath)
+        img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
+        noisy = np.random.poisson(img)
+        h, w, ch = noisy.shape
+        convert_to_Qt_format = QtGui.QImage(noisy.data, w, h, 3*w, QtGui.QImage.Format.Format_RGB888)
+        # p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+        p = QtGui.QPixmap(convert_to_Qt_format)
+        self.image.setPixmap(p)
+    
     def threshold(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
         parameter = self.firstParameter.text()
         if parameter != '':
             img = cv.imread(self.imgPath)
@@ -148,6 +227,8 @@ class Window(QWidget):
             self.image.setPixmap(QPixmap.fromImage(p))
 
     def basicLowPass(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
         parameter = int(self.secondParameter.text())
         if parameter != '':
             img = cv.imread(self.imgPath)
@@ -158,6 +239,8 @@ class Window(QWidget):
             convert_to_Qt_format = QtGui.QImage(img2, w, h, QtGui.QImage.Format.Format_RGB888)
             p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
             self.image.setPixmap(QPixmap.fromImage(p))
+
+
 
 
 # layout.addWidget(
