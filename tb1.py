@@ -55,6 +55,10 @@ class Window(QWidget):
         basicLowPassButton.clicked.connect(self.basicLowPass)
         layout.addWidget(basicLowPassButton, 1, 4)
 
+        medianLowPassButton = QPushButton("Median Low Pass")
+        medianLowPassButton.clicked.connect(self.medianLowPass)
+        layout.addWidget(medianLowPassButton, 2, 4)
+
         cannyButton = QPushButton("Canny")
         cannyButton.clicked.connect(self.canny)
         layout.addWidget(cannyButton, 2, 3)
@@ -80,30 +84,6 @@ class Window(QWidget):
         self.image.setPixmap(self.pixmap)
         layout.addWidget(self.image, 4, 0, 4, 4)
         self.setLayout(layout)
-
-    def cmap2pixmap(self, cmap, steps=50):
-        """Convert a maplotlib colormap into a QPixmap
-        :param cmap: The colormap to use
-        :type cmap: Matplotlib colormap instance (e.g. matplotlib.cm.gray)
-        :param steps: The number of color steps in the output. Default=50
-        :type steps: int
-        :rtype: QPixmap
-        """
-        
-        sm = cm.ScalarMappable(cmap=cmap)
-        sm.norm.vmin = 0.0
-        sm.norm.vmax = 1.0
-        inds = np.linspace(0, 1, steps)
-        rgbas = sm.to_rgba(inds)
-        rgbas = [QColor(int(r * 255), int(g * 255),
-                        int(b * 255), int(a * 255)).rgba() for r, g, b, a in rgbas]
-        im = QImage(steps, 1, QImage.Format_Indexed8)
-        im.setColorTable(rgbas)
-        for i in range(steps):
-            im.setPixel(i, 0, i)
-        im = im.scaled(100, 100)
-        pm = QPixmap.fromImage(im)
-        return pm
 
     def originalImage(self):
         currImage = self.imgPath
@@ -133,26 +113,20 @@ class Window(QWidget):
         while self.imgPath == '':
             self.imgPath = askopenfilename()
         #TODO
-        roberts_cross_v = np.array( [[1, 0 ],
-                                    [0,-1 ]] )
-  
-        roberts_cross_h = np.array( [[ 0, 1 ],
-                                    [ -1, 0 ]] )
+        roberts_cross_v = np.array( [[0, 0, -1],
+                                    [0, 1, 0],
+                                    [0, 0, 0]] )
         
-        img = cv.imread(self.imgPath, 0).astype('float64')
-        # gray_image = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
-        # gray_image = gray_image.astype('float64')
+        roberts_cross_h = np.array( [[-1, 0, 0],
+                                    [0, 1, 0],
+                                    [0, 0, 0]] )
         
-        vertical = cv.filter2D(img, -1,roberts_cross_v)
+        img = cv.imread(self.imgPath,0)
+        vertical = cv.filter2D(img, -1, roberts_cross_v)
         horizontal = cv.filter2D(img, -1, roberts_cross_h)
-        edged_img = np.sqrt(np.square(horizontal) + np.square(vertical))
+        edged_img = horizontal + vertical
         h, w = edged_img.shape        
-        # for i, x in enumerate(edged_img):
-        #     for j, y in enumerate(x):
-        #         edged_img[i][j] = int(edged_img[i][j])
-        # print(edged_img)
-        
-        convert_to_Qt_format = QtGui.QImage(edged_img.data, w, h, QtGui.QImage.Format.Format_BGR888)
+        convert_to_Qt_format = QtGui.QImage(edged_img.data, w, h, QtGui.QImage.Format.Format_Grayscale8)
         p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
         self.image.setPixmap(QPixmap.fromImage(p))
         # cv.imshow(edged_img)
@@ -208,7 +182,6 @@ class Window(QWidget):
         noisy = np.random.poisson(img)
         h, w, ch = noisy.shape
         convert_to_Qt_format = QtGui.QImage(noisy.data, w, h, 3*w, QtGui.QImage.Format.Format_RGB888)
-        # p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
         p = QtGui.QPixmap(convert_to_Qt_format)
         self.image.setPixmap(p)
     
@@ -240,8 +213,16 @@ class Window(QWidget):
             p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
             self.image.setPixmap(QPixmap.fromImage(p))
 
-
-
+    def medianLowPass(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
+        img = cv.imread(self.imgPath)    
+        grayImg = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
+        img2 = cv.medianBlur(grayImg, 5)
+        h, w = img2.shape
+        convert_to_Qt_format = QtGui.QImage(img2, w, h, QtGui.QImage.Format.Format_Grayscale8)
+        p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+        self.image.setPixmap(QPixmap.fromImage(p))
 
 # layout.addWidget(
 #     QPushButton("Button (2, 1) + 2 Columns Span"), 3, 1, 1, 3
