@@ -15,6 +15,7 @@ from matplotlib.pyplot import figure
 import matplotlib as cm
 # from tkinter import tk    
 from tkinter.filedialog import askopenfilename
+import random
 
 
 class Window(QWidget):
@@ -55,26 +56,29 @@ class Window(QWidget):
         basicLowPassButton.clicked.connect(self.basicLowPass)
         layout.addWidget(basicLowPassButton, 1, 4)
 
-        medianLowPassButton = QPushButton("Median Low Pass")
-        medianLowPassButton.clicked.connect(self.medianLowPass)
-        layout.addWidget(medianLowPassButton, 2, 4)
-
-        cannyButton = QPushButton("Canny")
-        cannyButton.clicked.connect(self.canny)
-        layout.addWidget(cannyButton, 2, 3)
-
         prewittButton = QPushButton("Prewitt")
         prewittButton.clicked.connect(self.prewitt)
         layout.addWidget(prewittButton, 2, 0)
 
-        layout.addWidget(QPushButton("Log"), 2, 1)
+        logButton = QPushButton("LoG")
+        logButton.clicked.connect(self.log)
+        layout.addWidget(logButton, 2, 1)
 
         poissonButton = QPushButton("Poisson")
         poissonButton.clicked.connect(self.poisson)
         layout.addWidget(poissonButton, 2, 2)
 
-        layout.addWidget(QPushButton("Speckle"), 3, 0)
-        layout.addWidget(QPushButton("Watershed"), 3, 1)
+        cannyButton = QPushButton("Canny")
+        cannyButton.clicked.connect(self.canny)
+        layout.addWidget(cannyButton, 2, 3)
+
+        medianLowPassButton = QPushButton("Median Low Pass")
+        medianLowPassButton.clicked.connect(self.medianLowPass)
+        layout.addWidget(medianLowPassButton, 2, 4)
+
+        saltAndPepperButton = QPushButton("Salt & Pepper")
+        saltAndPepperButton.clicked.connect(self.saltAndPepper)
+        layout.addWidget(saltAndPepperButton, 3, 2)
         # layout.addWidget(QPushButton("Canny"), 3, 2)
         self.image = QLabel()
         self.image.height = 640
@@ -186,10 +190,10 @@ class Window(QWidget):
         self.image.setPixmap(p)
     
     def threshold(self):
-        while self.imgPath == '':
-            self.imgPath = askopenfilename()
         parameter = self.firstParameter.text()
         if parameter != '':
+            while self.imgPath == '':
+                self.imgPath = askopenfilename()
             img = cv.imread(self.imgPath)
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
             imgToProcess = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
@@ -200,10 +204,11 @@ class Window(QWidget):
             self.image.setPixmap(QPixmap.fromImage(p))
 
     def basicLowPass(self):
-        while self.imgPath == '':
-            self.imgPath = askopenfilename()
-        parameter = int(self.secondParameter.text())
+        parameter = self.secondParameter.text()
         if parameter != '':
+            parameter = int(parameter)
+            while self.imgPath == '':
+                self.imgPath = askopenfilename()
             img = cv.imread(self.imgPath)
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
             kernel = np.ones((parameter,parameter),np.float32)/(parameter*parameter)
@@ -223,6 +228,48 @@ class Window(QWidget):
         convert_to_Qt_format = QtGui.QImage(img2, w, h, QtGui.QImage.Format.Format_Grayscale8)
         p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
         self.image.setPixmap(QPixmap.fromImage(p))
+
+    def saltAndPepper(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
+        img = cv.imread(self.imgPath)
+        img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+
+
+        row, col = img.shape
+            
+        number_of_pixels = random.randint(300, 10000)
+        for i in range(number_of_pixels):
+            y_coord=random.randint(0, row - 1)
+            x_coord=random.randint(0, col - 1)
+            img[y_coord][x_coord] = 255
+                
+        number_of_pixels = random.randint(300 , 10000)
+        for i in range(number_of_pixels):
+            y_coord=random.randint(0, row - 1)
+            x_coord=random.randint(0, col - 1)
+            img[y_coord][x_coord] = 0
+        
+        h, w = img.shape
+        convert_to_Qt_format = QtGui.QImage(img, w, h, QtGui.QImage.Format.Format_Grayscale8)
+        p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+        self.image.setPixmap(QPixmap.fromImage(p))
+
+    def log(self):
+        while self.imgPath == '':
+            self.imgPath = askopenfilename()
+        img = cv.imread(self.imgPath)    
+        blur = cv.GaussianBlur(img,(3,3),0)
+        laplacian = cv.Laplacian(blur,cv.CV_64F)
+        laplacian1 = laplacian/laplacian.max()
+        imgFinal = cv.imwrite(filename='.\\saida.png', img=laplacian1)
+        img = cv.imread('.\\saida.png',0)
+        h, w = img.shape
+        convert_to_Qt_format = QtGui.QImage(img, w, h, QtGui.QImage.Format.Format_Grayscale8)
+        p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+        self.image.setPixmap(QPixmap.fromImage(p))
+
+            
 
 # layout.addWidget(
 #     QPushButton("Button (2, 1) + 2 Columns Span"), 3, 1, 1, 3
