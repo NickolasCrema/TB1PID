@@ -1,28 +1,19 @@
-
-
 import sys
-import os
 import cv2 as cv
 from PyQt6 import QtGui as QtGui
 from PyQt6.QtGui import * 
 from PyQt6.QtWidgets import  *
-# from PyQt6 import QtWidgets as Qt
 import PyQt6.QtCore as Qt
 import numpy as np
-from scipy import ndimage
-from matplotlib import pyplot as plt
-from matplotlib.pyplot import figure
-import matplotlib as cm
-# from tkinter import tk    
 from tkinter.filedialog import askopenfilename
-
+import random
 
 class Window(QWidget):
     def __init__(self):
         super().__init__()
         self.imgPath = ''
         layout = QGridLayout()
-        self.setWindowTitle("QGridLayout")
+        self.setWindowTitle("Trabalho 1: Filtros e técnicas básicas")
 
         self.firstParameter = QLineEdit()
         self.secondParameter = QLineEdit()
@@ -30,12 +21,12 @@ class Window(QWidget):
         formLayout.addRow("1st Parameter", self.firstParameter)
 
         labelFirstParameter = QLabel(self)
-        labelFirstParameter.setText("Usado para: Threshold, Salt & Pepper, Zerocross")
+        labelFirstParameter.setText("Usado para: Threshold, Salt & Pepper. (0<X<1)")
         formLayout.addWidget(labelFirstParameter)
 
         formLayout.addRow("2nd Parameter", self.secondParameter)
         labelSecondParameter = QLabel(self)
-        labelSecondParameter.setText("Usado para: Passa-baixa básica, Passa-alta básico, Passa-alta alto reforço")
+        labelSecondParameter.setText("Usado para: Passa-baixa básica, Passa-alta básico. (X>0)")
         formLayout.addWidget(labelSecondParameter)
 
         layout.addLayout(formLayout, 0, 0, 1, 3)
@@ -67,22 +58,22 @@ class Window(QWidget):
         prewittButton = QPushButton("Prewitt")
         prewittButton.clicked.connect(self.prewitt)
         layout.addWidget(prewittButton, 2, 0)
-
-        layout.addWidget(QPushButton("Log"), 2, 1)
-
-        layout.addWidget(QPushButton("Watershed"), 2, 2)
         
         cannyButton = QPushButton("Canny")
         cannyButton.clicked.connect(self.canny)
-        layout.addWidget(cannyButton, 2, 3)
+        layout.addWidget(cannyButton, 2, 1)
+
+        saltPepperButton = QPushButton("Salt & Pepper")
+        saltPepperButton.clicked.connect(self.saltAndPepper)
+        layout.addWidget(saltPepperButton, 2, 2)
 
         medianLowPassButton = QPushButton("Median Low Pass")
         medianLowPassButton.clicked.connect(self.medianLowPass)
-        layout.addWidget(medianLowPassButton, 2, 4)
+        layout.addWidget(medianLowPassButton, 2, 3)
 
         basicHighPassButton = QPushButton("Basic High Pass")
         basicHighPassButton.clicked.connect(self.basicHighPass)
-        layout.addWidget(basicHighPassButton, 3, 4)
+        layout.addWidget(basicHighPassButton, 2, 4)
 
 
         self.image = QLabel()
@@ -162,13 +153,11 @@ class Window(QWidget):
             self.imgPath = askopenfilename()
             if self.imgPath == '':
                 return
-
         img = cv.imread(self.imgPath)
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         img_gaussian = cv.GaussianBlur(gray,(3,3),0)
         kernelx = np.array([[1,1,1],[0,0,0],[-1,-1,-1]])
         kernely = np.array([[-1,0,1],[-1,0,1],[-1,0,1]])
-
         img_prewittx = cv.filter2D(img_gaussian, -1, kernelx)
         img_prewitty = cv.filter2D(img_gaussian, -1, kernely)
         img_prewitt = img_prewittx + img_prewitty
@@ -199,7 +188,7 @@ class Window(QWidget):
             if self.imgPath == '':
                 return
         parameter = self.firstParameter.text()
-        if parameter != '':
+        if parameter != '' and float(parameter) > 0.0 and float(parameter) < 1.0:
             img = cv.imread(self.imgPath)
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
             imgToProcess = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
@@ -214,8 +203,9 @@ class Window(QWidget):
             self.imgPath = askopenfilename()
             if self.imgPath == '':
                 return
-        parameter = int(self.secondParameter.text())
-        if parameter != '':
+        parameter = self.secondParameter.text()
+        if parameter != '' and int(parameter) > 0:
+            parameter = int(parameter)
             img = cv.imread(self.imgPath)
             img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
             kernel = np.ones((parameter,parameter),np.float32)/(parameter*parameter)
@@ -243,33 +233,46 @@ class Window(QWidget):
             self.imgPath = askopenfilename()
             if self.imgPath == '':
                 return
-        parameter = int(self.secondParameter.text())
-        if parameter != '':
+        parameter = self.secondParameter.text()
+        if parameter != '' and int(parameter) > 0:
+            parameter = int(parameter)
             img = cv.imread(self.imgPath)
-            # img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-
-            # if parameter > 8:
             matrix = parameter/8 * -1
             parameter+=1
-            # parameter = parameter + 1
-                # rest = parameter % 8
-                # parameter = parameter - rest
-            # else: matrix = -1
             h = np.array([
                 [matrix,  matrix,   matrix],
                 [matrix, parameter, matrix],
                 [matrix,  matrix,   matrix],
                 ])
-
             passaAlta = cv.filter2D(src=img, ddepth=-1, kernel=h)
             h, w, _ = passaAlta.shape
             convert_to_Qt_format = QtGui.QImage(passaAlta, w, h, QtGui.QImage.Format.Format_BGR888)
             p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
             self.image.setPixmap(QPixmap.fromImage(p))
 
-# layout.addWidget(
-#     QPushButton("Button (2, 1) + 2 Columns Span"), 3, 1, 1, 3
-# )
+    def saltAndPepper(self):
+
+        if self.imgPath == '':
+            self.imgPath = askopenfilename()
+            if self.imgPath == '':
+                return
+        parameter = self.firstParameter.text()
+        if parameter != '' and float(parameter) > 0.0 and float(parameter) < 1.0:
+            img = cv.imread(self.imgPath, 0)
+            h, w = img.shape
+            nroPixels = int(30000 * float(parameter))
+            for i in range(nroPixels):        
+                y = random.randint(0, h - 1)            
+                x = random.randint(0, w - 1)            
+                img[x][y] = 255 
+            for i in range(nroPixels):
+                y = random.randint(0, h - 1)
+                x = random.randint(0, w - 1)
+                img[x][y] = 0
+            convert_to_Qt_format = QtGui.QImage(img, w, h, QtGui.QImage.Format.Format_Grayscale8)
+            p = convert_to_Qt_format.scaled(w, h, Qt.Qt.AspectRatioMode.KeepAspectRatio)
+            self.image.setPixmap(QPixmap.fromImage(p))
+
 app = QApplication([])
 window = Window()
 
